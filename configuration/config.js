@@ -6,7 +6,7 @@ var config = {};
 // Path
 config.ossec_path = "/var/ossec";
 // The host to bind the API to.
-config.host = "0.0.0.0";
+config.host = "*";
 // TCP Port used by the API.
 config.port = "55000";
 // Use HTTP protocol over TLS/SSL. Values: yes, no.
