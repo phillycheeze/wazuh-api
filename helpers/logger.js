@@ -10,11 +10,11 @@
  */
 
 var moment = require('moment');
+var config = require('../config.js');
 var fs = require('fs');
 
-var tag = "WazuhAPI";
+var tag = config.logs_tag;
 var f_log = config.log_path;
-var foreground = false;
 var LEVEL_DISABLED = 0;
 var LEVEL_INFO = 1;
 var LEVEL_WARNING = 2;
@@ -42,22 +42,33 @@ switch(config.logs) {
         logger_level = LEVEL_INFO;
 }
 
-exports.set_foreground = function() {
-    foreground = true;
-}
-
 function header(){
     return tag + " " + moment().format('YYYY-MM-DD HH:mm:ss') + ": ";
 }
 
 function write_log(msg){
-    if(foreground)
-        console.log(msg);
-    fs.appendFile(f_log, msg + "\n", {'mode': 0o640}, function(err) {
+    fs.appendFile(f_log, msg + "\n", function(err) {
         if(err) {
             return console.error(err);
         }
-    });
+    }); 
+}
+
+exports.logCommand = function(cmd, error, stdout, stderr) {
+    var head = header() + "CMD -";
+
+    if(logger_level >= LEVEL_DEBUG)
+        write_log(head + cmd);
+
+    if (logger_level >= LEVEL_ERROR){
+        if(error != null)
+            write_log(head + " error:" + error);
+
+        if(stderr != "")
+            write_log(head + " stderr:" + stderr);
+    }
+    if(logger_level >= LEVEL_DEBUG)
+        write_log(head + " stdout:" + stdout);
 }
 
 exports.log = function(message) {

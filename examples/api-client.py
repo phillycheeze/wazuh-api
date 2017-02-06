@@ -25,6 +25,10 @@ except Exception as e:
 
 
 def req(method, resource, data=None):
+    # Configuration
+    base_url = 'https://IP:55000'
+    auth = HTTPBasicAuth('foo', 'bar')
+    verify = False
     url = '{0}/{1}'.format(base_url, resource)
 
     try:
@@ -52,25 +56,19 @@ def req(method, resource, data=None):
 def code_desc(http_status_code):
     return requests.status_codes._codes[http_status_code][0]
 
-if __name__ == "__main__":
-    # Configuration
-    base_url = 'https://localhost:55000'
-    auth = HTTPBasicAuth('foo', 'bar')
-    verify = False  # Use with self-signed certificates.
+print("Welcome:")
+status_code, response = req('get', '/')
+print(json.dumps(response, indent=4, sort_keys=True))
+print("Status: {0} - {1}".format(status_code, code_desc(status_code)))
 
-    print("Welcome:")
-    status_code, response = req('get', '/')
-    print(json.dumps(response, indent=4, sort_keys=True))
-    print("Status: {0} - {1}".format(status_code, code_desc(status_code)))
+print("\nAgents:")
+status_code, response = req('get', '/agents')
+print(json.dumps(response, indent=4, sort_keys=True))
+print("Status: {0} - {1}".format(status_code, code_desc(status_code)))
 
-    print("\nAgents:")
-    status_code, response = req('get', '/agents')
-    print(json.dumps(response, indent=4, sort_keys=True))
-    print("Status: {0} - {1}".format(status_code, code_desc(status_code)))
+print("\nManager:")
+status_code, response = req('get', '/manager/status')
+print(json.dumps(response, indent=4, sort_keys=True))
+print("Status: {0} - {1}".format(status_code, code_desc(status_code)))
 
-    print("\nManager:")
-    status_code, response = req('get', '/manager/status')
-    print(json.dumps(response, indent=4, sort_keys=True))
-    print("Status: {0} - {1}".format(status_code, code_desc(status_code)))
-
-    print("\n\nWazuh.com")
+print("\n\nWazuh.com")

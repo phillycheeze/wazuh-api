@@ -21,3 +21,5 @@ framework/build/
 
 # Installation files
 configuration/auth/htpasswd
+
+.DS_Store

@@ -1,5 +1,5 @@
 /**
- * Wazuh API RESTful
+ * API RESTful for OSSEC
  * Copyright (C) 2015-2016 Wazuh, Inc.All rights reserved.
  * Wazuh.com
  *
@@ -9,112 +9,32 @@
  * Foundation.
  */
 
-if (process.getuid() !== 0){
-    console.log('A root user is required to start the API.');
-    process.exit(1);
-}
-
-/********************************************/
-/* Root actions
-/********************************************/
-try {
-    var auth = require("http-auth");
-} catch (e) {
-    console.log("Dependencies not found. Try 'npm install' in /var/ossec/api. Exiting...");
-    process.exit(1);
-}
-
-//  Get configuration
-config = require('./configuration/config');
-
-//  Get credentials
-if (config.basic_auth.toLowerCase() == "yes"){
-    var auth_secure = auth.basic({
-        realm: "OSSEC API",
-        file: __dirname + "/configuration/auth/user"
-    });
-}
-
-//  Get Certs
-var options;
-if (config.https.toLowerCase() == "yes"){
-    var fs = require('fs');
-    options = {
-      key: fs.readFileSync(__dirname + '/configuration/ssl/server.key'),
-      cert: fs.readFileSync(__dirname + '/configuration/ssl/server.crt')
-    };
-}
-
-/********************************************/
-/* Drop privileges
-/********************************************/
-try {
-    process.setgid('ossec');
-    process.setuid('ossec');
-} catch(err) {
-    console.log('Drop privileges failed: ' + err.message);
-    process.exit(1);
-}
-
-/********************************************/
-/* Modules, vars and global vars
-/********************************************/
-try {
-    var express = require('express');
-    var bodyParser = require('body-parser');
-    var cors = require('cors')
-    var moment = require('moment');
-} catch (e) {
-    console.log("Dependencies not found. Try 'npm install' in /var/ossec/api. Exiting...");
-    process.exit(1);
-}
-
-logger = require('./helpers/logger');
-res_h = require('./helpers/response_handler');
-api_path = __dirname;
+// Modules
+var express = require('express');
+var bodyParser = require('body-parser');
+var auth = require("http-auth");
+var fs = require('fs');
+var cors = require('cors')
+var config = require('./config.js');
+var logger = require('./helpers/logger');
+var res_h = require('./helpers/response_handler');
 
 /********************************************/
 /* Config APP
 /********************************************/
-current_version = "v2.0.0";
+var current_version = "v1.2";
 
-if (process.argv.length == 3 && process.argv[2] == "-f")
-    logger.set_foreground();
-
-// Check Wazuh version
-try {
-    var fs  = require("fs");
-    var wazuh_version = 0;
-    var version_regex = new RegExp('VERSION="v(.+)"');
-
-    fs.readFileSync('./etc/ossec-init.conf').toString().split('\n').forEach(function (line) {
-        var r  = line.match(version_regex);
-        if (r){
-            wazuh_version = parseFloat(r[1]);
-            return;
-        }
-    });
-
-    if (wazuh_version < 2){
-        if (wazuh_version == 0)
-            var msg = "not";
-        else
-            var msg = wazuh_version;
-
-        logger.log("Wazuh manager " + msg + " found. It is required Wazuh Manager 2.0 or newer. Exiting.");
-        setTimeout(function(){ process.exit(1); }, 500);
-        return;
-    }
-} catch (e) {
-    logger.log("WARNING: The installed version of Wazuh manager could not be determined. It is required Wazuh Manager 2.0 or newer.");
-}
-
-var port = process.env.PORT || config.port;
-
-if (config.host != "0.0.0.0")
-    var host = config.host;
+port = process.env.PORT || config.port;
 
 var app = express();
+// Certs
+var options;
+if (config.https.toLowerCase() == "yes"){
+    options = {
+      key: fs.readFileSync(__dirname + '/ssl/server.key'),
+      cert: fs.readFileSync(__dirname + '/ssl/server.crt')
+    };
+}
 
 // CORS
 if (config.cors.toLowerCase() == "yes"){
@@ -123,18 +43,13 @@ if (config.cors.toLowerCase() == "yes"){
 
 // Basic authentication
 if (config.basic_auth.toLowerCase() == "yes"){
+    var auth_secure = auth.basic({
+        realm: "OSSEC API",
+        file: __dirname + "/ssl/htpasswd"
+    });
     app.use(auth.connect(auth_secure));
 }
 
-auth_secure.on('fail', (result, req) => {
-    var log_msg = "[" + req.connection.remoteAddress + "] " + "User: \"" + result.user + "\" - Authentication failed.";
-    logger.log(log_msg);
-});
-
-auth_secure.on('error', (error, req) => {
-    var log_msg = "[" + req.connection.remoteAddress + "] Authentication error: " + error.code + " - " + error.message;
-    logger.log(log_msg);
-});
 
 // Body
 app.use(bodyParser.json());
@@ -142,19 +57,19 @@ app.use(bodyParser.urlencoded({extended: true}));
 
 /**
  * Versioning
- * Using: Header: "api-version: vX.Y" or URL: /v2.0.0/
+ * Using: Header: "api-version: vX.Y" or URL: /v1.2/
  */
 app.use(function(req, res, next) {
     var api_version_header = req.get('api-version');
     var api_version_url = req.path.split('/')[1];
-    var regex_version = /^v\d+(?:\.\d+){0,2}$/i;
+    var regex_version = /^v\d+(?:\.\d+){0,1}$/i;
     var new_url = "";
 
     if (api_version_url && regex_version.test(api_version_url))
         new_url = req.url;
     else if (api_version_header && regex_version.test(api_version_header))
         new_url = "/" + api_version_header + req.url;
-    else
+    else 
         new_url = "/" + current_version + req.url;
 
     req.url = new_url;
@@ -165,69 +80,57 @@ app.use(function(req, res, next) {
 
 // Controllers
 app.use("/" + current_version, require('./controllers'));
+//Example: app.use("/v1.2", require('./versions/v1.2/controllers'));
 
 
 // APP Errors
 app.use (function (err, req, res, next){
-
     if ( err == "Error: invalid json" ){
-        logger.debug(req.connection.remoteAddress + " " + req.method + " " + req.path);
-        res_h.bad_request(req, res, "607");
-    }
-    else if ('status' in err && err.status == 400){
-        var msg = "";
-        if ('body' in err)
-            msg = "Body: " + err.body;
-        res_h.bad_request(req, res, "614", msg);
+        logger.log(req.connection.remoteAddress + " " + req.method + " " + req.path);
+        res_h.bad_request("607", "", res);
     }
     else{
         logger.log("Internal Error");
         if(err.stack)
             logger.log(err.stack);
         logger.log("Exiting...");
-        setTimeout(function(){ process.exit(1); }, 500);
+        process.exit(1);
     }
 });
 
 /********************************************/
-/* Create server
-/********************************************/
+
+
+// Create server
 if (config.https.toLowerCase() == "yes"){
     var https = require('https');
-    var server = https.createServer(options, app).listen(port, host, function(){
+    var server = https.createServer(options, app).listen(port, function(){
         logger.log("Listening on: https://" + server.address().address + ":" + port);
     });
 }
 else{
     var http = require('http');
-    var server = http.createServer(app).listen(port, host, function(){
+    var server = http.createServer(app).listen(port, function(){
         logger.log("Listening on: http://" + server.address().address + ":" + port);
     });
 }
 
-/********************************************/
-/* Event handler
-/********************************************/
+
+// Event Handler
 process.on('uncaughtException', function(err) {
-
-    if (err.errno == "EADDRINUSE")
-        logger.log("Error: Address in use (port " + port + "): Close the program using that port or change the port.")
-    else {
-      logger.log("Internal Error: uncaughtException");
-      if(err.stack)
-          logger.log(err.stack);
-    }
-
+    logger.log("Internal Error: uncaughtException");
+    if(err.stack)
+        logger.log(err.stack);
     logger.log("Exiting...");
-    setTimeout(function(){ process.exit(1); }, 500);
+    process.exit(1);
 });
 
 process.on('SIGTERM', function() {
     logger.log("Exiting... (SIGTERM)");
-    setTimeout(function(){ process.exit(1); }, 500);
+    process.exit(1);
 });
 
 process.on('SIGINT', function() {
     logger.log("Exiting... (SIGINT)");
-    setTimeout(function(){ process.exit(1); }, 500);
-});
+    process.exit(1);
+}); 

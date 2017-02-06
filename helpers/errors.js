@@ -11,44 +11,28 @@
 
 var errors = {};
 
-// 1 - 9 Internal Errors
-errors['1'] = "Error executing internal command";
-errors['2'] = "Command output not in JSON";
-errors['3'] = "Internal error";
+// 01 - 10 Internal Errors
+errors['01'] = "Error executing internal command";
+errors['02'] = "Command output not in JSON";
+
+// 10 - 19 rootcheck_control
+// 20 - 29 ossec-control
+// 30 - 39 syscheck_control
+// 40 - 49 agent_control
+// 50 - 59 get_conf.py
+// 60 - 69 stats.py
+// 70 - 79 manage_agents
+// 80 - 89 check_config.py
+
 
 // 600 - 699 Requests
 errors['600'] = "Param not valid. Integer expected";  // Integer
-errors['numbers'] = 600;
-errors['601'] = "Param not valid. Valid characters: a-z, A-Z, 0-9, ., _, -";  // Names
-errors['names'] = 601;
+errors['601'] = "Param not valid. Valid characters: a-z, A-Z, 0-9, ., _, -,/,\\";  // Names
 errors['603'] = "The requested URL was not found on this server";  // Default error
 errors['604'] = "Filter error";  // Filter
 errors['605'] = "Param not valid. Date format: YYYYMMDD";  // Date
-errors['dates'] = 605;
 errors['606'] = "Param not valid. IP invalid";  // IP
-errors['ips'] = 606;  // IP
-errors['607'] = "Invalid content-type. POST requests should be 'application/json' or 'application/x-www-form-urlencoded'";  //
-errors['608'] = "Param not valid. Path invalid. Valid characters: a-z, A-Z, 0-9, ., _, -, :, /, \\";  // Paths
-errors['paths'] = 608;
-errors['609'] = "Param not valid. Valid characters: a-z, A-Z, 0-9, ., _, -, +";  // Alphanumeric params
-errors['alphanumeric_param'] = 609;
-errors['610'] = "Param not valid. Valid characters: number or interval separated by '-'";  // range
-errors['ranges'] = 610;
-errors['611'] = "Param not valid. Valid characters: a-z, A-Z, 0-9, _, -, +, ,";  // sort
-errors['sort_param'] = 611;
-errors['612'] = "Param not valid. Valid characters: a-z A-Z 0-9 space _ - / \ : . \" ' @ ~ +";  // search
-errors['search_param'] = 612;
-errors['613'] = "Param not valid. Valid characters: md5/sha1 hash";  // hashes
-errors['hashes'] = 613;
-errors['614'] = "Invalid request"
-errors['615'] = "Param not valid. Valid characters: a-z A-Z 0-9";  // keys
-errors['ossec_key'] = 615;
-
-errors['700'] = "File not found"
-
-// Headers
-errors['800'] = "Error adding agent due to header 'x-forwarded-for' is not present";
-
+errors['607'] = "Invalid content-type. POST requests should be 'application/json' or 'application/x-www-form-urlencoded'";  // 
 
 exports.description = function(n){
     if (n in errors)
